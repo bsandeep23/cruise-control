@@ -485,7 +485,11 @@ public class AnomalyDetectorManager {
           } else {
             LOG.debug("Scheduling broker failure detection with delay of {} ms", delayMs);
             _numCheckedWithDelay.incrementAndGet();
-            _detectorScheduler.schedule(() -> _brokerFailureDetector.detectBrokerFailures(false), delayMs, TimeUnit.MILLISECONDS);
+            BrokerFailures brokerFailures = (BrokerFailures) _anomalyInProgress;
+            LOG.info("Debug cc: Retry count for anomaly fix check: {}", brokerFailures.anomalyFixCheckRetryCount());
+            // Carry forward the count of anomaly fix checks done until now
+            _detectorScheduler.schedule(() -> _brokerFailureDetector.detectBrokerFailures(false, 
+              brokerFailures.anomalyFixCheckRetryCount() + 1), delayMs, TimeUnit.MILLISECONDS);
             _anomalyDetectorState.onAnomalyHandle(_anomalyInProgress, AnomalyState.Status.CHECK_WITH_DELAY);
           }
         }

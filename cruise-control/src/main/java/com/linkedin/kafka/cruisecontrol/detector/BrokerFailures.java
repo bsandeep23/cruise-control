@@ -12,6 +12,8 @@ import com.linkedin.kafka.cruisecontrol.servlet.handler.async.runnable.RemoveBro
 import com.linkedin.kafka.cruisecontrol.servlet.response.OptimizationResult;
 import java.util.Map;
 import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static com.linkedin.cruisecontrol.CruiseControlUtils.utcDateFor;
 import static com.linkedin.kafka.cruisecontrol.config.constants.AnomalyDetectorConfig.ANOMALY_DETECTION_ALLOW_CAPACITY_ESTIMATION_CONFIG;
@@ -29,6 +31,8 @@ public class BrokerFailures extends KafkaAnomaly {
   protected Map<Integer, Long> _failedBrokers;
   protected RemoveBrokersRunnable _removeBrokersRunnable;
   protected boolean _fixable;
+  protected int _anomalyFixCheckRetryCount;
+  private static final Logger LOG = LoggerFactory.getLogger(BrokerFailures.class);
 
   /**
    * An anomaly to indicate broker failure(s).
@@ -52,6 +56,10 @@ public class BrokerFailures extends KafkaAnomaly {
    */
   public boolean fixable() {
     return _fixable;
+  }
+  
+  public int anomalyFixCheckRetryCount() {
+    return _anomalyFixCheckRetryCount;
   }
 
   @Override
@@ -100,6 +108,8 @@ public class BrokerFailures extends KafkaAnomaly {
       throw new IllegalArgumentException("Missing broker ids for failed brokers anomaly.");
     }
     _fixable = (Boolean) configs.get(AbstractBrokerFailureDetector.BROKER_FAILURES_FIXABLE_CONFIG);
+    _anomalyFixCheckRetryCount = (int) configs.get(AbstractBrokerFailureDetector.ANOMALY_FIX_CHECK_RETRY_COUNT_CONFIG);
+    LOG.info("Debug cc: Using the anomaly fix check count: {}", _anomalyFixCheckRetryCount);
     _optimizationResult = null;
     KafkaCruiseControlConfig config = kafkaCruiseControl.config();
     boolean allowCapacityEstimation = config.getBoolean(ANOMALY_DETECTION_ALLOW_CAPACITY_ESTIMATION_CONFIG);

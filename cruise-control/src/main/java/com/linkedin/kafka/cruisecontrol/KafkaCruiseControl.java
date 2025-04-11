@@ -110,7 +110,7 @@ public class KafkaCruiseControl {
    * @param config the configuration of Cruise Control.
    */
   public KafkaCruiseControl(KafkaCruiseControlConfig config, MetricRegistry dropwizardMetricRegistry) {
-    LOG.info("Debugging: cc");
+    LOG.info("Debugging: cc v1 with max retries");
     _config = config;
     _time = Time.SYSTEM;
     // initialize some of the static state of Kafka Cruise Control;
