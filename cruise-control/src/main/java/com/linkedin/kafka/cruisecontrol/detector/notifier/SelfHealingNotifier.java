@@ -248,11 +248,19 @@ public class SelfHealingNotifier implements AnomalyNotifier {
       result = AnomalyNotificationResult.check(delayMs);
     } else {
       // Reached auto fix threshold. Alert and fix if self healing is enabled and anomaly is fixable.
-      boolean autoFixTriggered = _selfHealingEnabled.get(KafkaAnomalyType.BROKER_FAILURE) && brokerFailures.fixable();
+      boolean selfHealingEnabled = _selfHealingEnabled.get(KafkaAnomalyType.BROKER_FAILURE);
+      boolean autoFixTriggered = selfHealingEnabled && brokerFailures.fixable();
       if (hasNewFailureToAlert(brokerFailures, autoFixTriggered)) {
         alert(brokerFailures, autoFixTriggered, selfHealingTimeMs, KafkaAnomalyType.BROKER_FAILURE);
       }
-      result = autoFixTriggered ? AnomalyNotificationResult.fix() : AnomalyNotificationResult.ignore();
+      // TODO: need to figure out a time after which this is checked
+      long delayMs = nowMs - selfHealingTimeMs;
+      LOG.info("Debug - Self healing enabled: {}", _selfHealingEnabled.get(KafkaAnomalyType.BROKER_FAILURE));
+      LOG.info("Debug - autoFixTriggered: {}", autoFixTriggered);
+      LOG.info("Debug - Broker failure check with delay instead of ignoring");
+      LOG.info("Debug - Broker failures which are being tracked: {}", brokerFailures.failedBrokers().keySet());
+      result = autoFixTriggered ? AnomalyNotificationResult.fix() 
+      : (selfHealingEnabled ? AnomalyNotificationResult.ignore() : AnomalyNotificationResult.check(delayMs));
     }
     return result;
   }
