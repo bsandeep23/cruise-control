@@ -36,6 +36,7 @@ import org.apache.kafka.common.config.ConfigException;
  */
 public class KafkaCruiseControlConfig extends AbstractConfig {
   private static final ConfigDef CONFIG;
+  private static final Logger LOG = LoggerFactory.getLogger(KafkaCruiseControlConfig.class);
 
   static {
     CONFIG = CruiseControlRequestConfig.define(CruiseControlParametersConfig.define(AnomalyDetectorConfig.define(
@@ -94,6 +95,7 @@ public class KafkaCruiseControlConfig extends AbstractConfig {
   public <T> T getConfiguredInstance(String key, Class<T> t, Map<String, Object> configOverrides) {
     Class<?> c = getClass(key);
     Map<String, Object> configPairs = mergedConfigValues();
+    LOG.info("Debug: cc configPairs from getConfiguredInstance : {}", configPairs);
     configPairs.putAll(configOverrides);
     return KafkaCruiseControlConfigUtils.getConfiguredInstance(c, t, configPairs);
   }

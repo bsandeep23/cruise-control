@@ -279,6 +279,7 @@ public class SelfHealingNotifier implements AnomalyNotifier {
           }
           LOG.info("Debug - Broker failure check with delay instead of ignoring");
           LOG.info("Debug - Broker failures which are being tracked: {}", brokerFailures.failedBrokers().keySet());
+          LOG.info("Debug - Broker failure evaluation anomalyFixCheckRetryCount: {}", brokerFailures.anomalyFixCheckRetryCount());
           result = AnomalyNotificationResult.check(_selfHealingCheckDelayMs);
         } else {
           result = AnomalyNotificationResult.ignore();
@@ -308,16 +309,20 @@ public class SelfHealingNotifier implements AnomalyNotifier {
   @Override
   public void configure(Map<String, ?> config) {
     String alertThreshold = (String) config.get(BROKER_FAILURE_ALERT_THRESHOLD_MS_CONFIG);
-    _brokerFailureAlertThresholdMs = alertThreshold == null ? DEFAULT_ALERT_THRESHOLD_MS : Long.parseLong(alertThreshold);
+    //_brokerFailureAlertThresholdMs = alertThreshold == null ? DEFAULT_ALERT_THRESHOLD_MS : Long.parseLong(alertThreshold);
+    _brokerFailureAlertThresholdMs = TimeUnit.MINUTES.toMillis(2);
     String fixThreshold = (String) config.get(BROKER_FAILURE_SELF_HEALING_THRESHOLD_MS_CONFIG);
-    _selfHealingThresholdMs = fixThreshold == null ? DEFAULT_AUTO_FIX_THRESHOLD_MS : Long.parseLong(fixThreshold);
+    //_selfHealingThresholdMs = fixThreshold == null ? DEFAULT_AUTO_FIX_THRESHOLD_MS : Long.parseLong(fixThreshold);
+    _selfHealingThresholdMs = TimeUnit.MINUTES.toMillis(2);
 
     String selfHealingCheckDelayMaxRetryCount = (String) config.get(BROKER_FAILURE_SELF_HEALING_CHECK_MAX_RETRY_COUNT);
-    _selfHealingCheckDelayMaxRetryCount = selfHealingCheckDelayMaxRetryCount == null  
-      ? DEFAULT_CHECK_DELAY_MAX_RETRY : Integer.parseInt(selfHealingCheckDelayMaxRetryCount);
+    //_selfHealingCheckDelayMaxRetryCount = selfHealingCheckDelayMaxRetryCount == null  
+    //  ? DEFAULT_CHECK_DELAY_MAX_RETRY : Integer.parseInt(selfHealingCheckDelayMaxRetryCount);
+    _selfHealingCheckDelayMaxRetryCount = 3;
     
     String selfHealingCheckDelayMs = (String) config.get(BROKER_FAILURE_SELF_HEALING_CHECK_DELAY_MS_CONFIG);
-    _selfHealingCheckDelayMs = selfHealingCheckDelayMs == null ? DEFAULT_SELF_HEALING_CHECK_DELAY_MS : Long.parseLong(selfHealingCheckDelayMs);
+    //_selfHealingCheckDelayMs = selfHealingCheckDelayMs == null ? DEFAULT_SELF_HEALING_CHECK_DELAY_MS : Long.parseLong(selfHealingCheckDelayMs);
+    _selfHealingCheckDelayMs = TimeUnit.MINUTES.toMillis(2);
 
     if (_brokerFailureAlertThresholdMs > _selfHealingThresholdMs) {
       throw new IllegalArgumentException(String.format("The failure detection threshold %d cannot be larger than "

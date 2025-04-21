@@ -255,6 +255,7 @@ public class AbstractConfig {
    */
   public <T> T getConfiguredInstance(String key, Class<T> t) throws CruiseControlException {
     Class<?> c = getClass(key);
+    _log.info("Debug cc: getConfiguredInstance: {} {}", key, c);
     if (c == null) {
       return null;
     }

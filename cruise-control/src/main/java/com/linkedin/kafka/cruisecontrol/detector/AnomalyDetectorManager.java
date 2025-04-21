@@ -101,8 +101,9 @@ public class AnomalyDetectorManager {
     _anomalyDetectionIntervalMsByType.put(DISK_FAILURE, diskFailureDetectionIntervalMs == null ? anomalyDetectionIntervalMs
                                                                                                : diskFailureDetectionIntervalMs);
     Long brokerFailureDetectionIntervalMs = config.getLong(AnomalyDetectorConfig.BROKER_FAILURE_DETECTION_INTERVAL_MS_CONFIG);
-    _anomalyDetectionIntervalMsByType.put(BROKER_FAILURE, brokerFailureDetectionIntervalMs == null ? anomalyDetectionIntervalMs
-                                                                                                   : brokerFailureDetectionIntervalMs);
+    // _anomalyDetectionIntervalMsByType.put(BROKER_FAILURE, brokerFailureDetectionIntervalMs == null ? anomalyDetectionIntervalMs
+    //                                                                                                : brokerFailureDetectionIntervalMs);
+    _anomalyDetectionIntervalMsByType.put(BROKER_FAILURE, TimeUnit.MINUTES.toMillis(2));
     _brokerFailureDetectionBackoffMs = config.getLong(AnomalyDetectorConfig.BROKER_FAILURE_DETECTION_BACKOFF_MS_CONFIG);
     _anomalyNotifier = config.getConfiguredInstance(AnomalyDetectorConfig.ANOMALY_NOTIFIER_CLASS_CONFIG,
                                                     AnomalyNotifier.class);
@@ -111,9 +112,12 @@ public class AnomalyDetectorManager {
     sanityCheckGoals(_selfHealingGoals, false, config);
     _goalViolationDetector = new GoalViolationDetector(_anomalies, _kafkaCruiseControl, dropwizardMetricRegistry);
     if (config.getBoolean(AnomalyDetectorConfig.KAFKA_BROKER_FAILURE_DETECTION_ENABLE_CONFIG)) {
+      LOG.info("CC: debug Kafka broker failure detection is enabled.");
       _brokerFailureDetector = new KafkaBrokerFailureDetector(_anomalies, _kafkaCruiseControl);
     } else {
+      LOG.info("CC: debug ZK based broker failure detection is enabled.");
       _brokerFailureDetector = new ZKBrokerFailureDetector(_anomalies, _kafkaCruiseControl);
+      LOG.info("CC: debug ZK based broker failure detection is created.");
     }
     _metricAnomalyDetector = new MetricAnomalyDetector(_anomalies, _kafkaCruiseControl);
     _diskFailureDetector = new DiskFailureDetector(_anomalies, _kafkaCruiseControl);
@@ -222,7 +226,7 @@ public class AnomalyDetectorManager {
   private void scheduleDetectorAtFixedRate(KafkaAnomalyType anomalyType, Runnable anomalyDetector) {
     int jitter = RANDOM.nextInt(INIT_JITTER_BOUND);
     long anomalyDetectionIntervalMs = _anomalyDetectionIntervalMsByType.get(anomalyType);
-    LOG.debug("Starting {} detector with delay of {} ms", anomalyType, jitter);
+    LOG.info("Starting {} detector with delay of {} ms", anomalyType, jitter);
     _detectorScheduler.scheduleAtFixedRate(anomalyDetector,
                                            anomalyDetectionIntervalMs / 2 + jitter,
                                            anomalyDetectionIntervalMs,
@@ -350,7 +354,7 @@ public class AnomalyDetectorManager {
         _anomalyInProgress = null;
         try {
           _anomalyInProgress = _anomalies.take();
-          LOG.trace("Processing anomaly {}.", _anomalyInProgress);
+          LOG.info("Processing anomaly {}.", _anomalyInProgress);
           if (_anomalyInProgress == SHUTDOWN_ANOMALY) {
             // Service has shutdown.
             _anomalyInProgress = null;
@@ -414,8 +418,10 @@ public class AnomalyDetectorManager {
             fixAnomalyInProgress(anomalyType);
             break;
           case CHECK:
-            LOG.info("Post processing anomaly {} for {}.", _anomalyInProgress, AnomalyState.Status.CHECK_WITH_DELAY);
+            LOG.info("Post processing anomaly {} id {} for {}.", _anomalyInProgress, _anomalyInProgress.anomalyId(), AnomalyState.Status.CHECK_WITH_DELAY);
+            LOG.info("Debug cc: processAnomalyInProgress Broker failure check with retry count: {}", ((BrokerFailures) _anomalyInProgress).anomalyFixCheckRetryCount());
             postProcessAnomalyInProgress(notificationResult.delay());
+            LOG.info("Debug cc: post processAnomalyInProgress anomalyId {} Broker failure check with retry count: {}", _anomalyInProgress.anomalyId(), ((BrokerFailures) _anomalyInProgress).anomalyFixCheckRetryCount());
             break;
           case IGNORE:
             _anomalyDetectorState.onAnomalyHandle(_anomalyInProgress, AnomalyState.Status.IGNORED);
@@ -444,7 +450,9 @@ public class AnomalyDetectorManager {
           break;
         case BROKER_FAILURE:
           BrokerFailures brokerFailures = (BrokerFailures) _anomalyInProgress;
+          LOG.info("Debug cc: Broker failure switch case anomalyId: {} with retry count: {}", brokerFailures.anomalyId(), brokerFailures.anomalyFixCheckRetryCount());
           notificationResult = _anomalyNotifier.onBrokerFailure(brokerFailures);
+          LOG.info("Debug cc: Broker failure after switch case anomalyId: {} with retry count: {}", brokerFailures.anomalyId(), brokerFailures.anomalyFixCheckRetryCount());
           break;
         case METRIC_ANOMALY:
           KafkaMetricAnomaly metricAnomaly = (KafkaMetricAnomaly) _anomalyInProgress;
@@ -483,13 +491,14 @@ public class AnomalyDetectorManager {
           if (_shutdown) {
             LOG.debug("Skip delayed checking anomaly {}, because anomaly detector is shutting down.", _anomalyInProgress);
           } else {
-            LOG.debug("Scheduling broker failure detection with delay of {} ms", delayMs);
+            LOG.info("Debug: Scheduling broker failure detection for anomaly Id: {} with delay of {} ms", _anomalyInProgress.anomalyId(), delayMs);
             _numCheckedWithDelay.incrementAndGet();
             BrokerFailures brokerFailures = (BrokerFailures) _anomalyInProgress;
-            LOG.info("Debug cc: Retry count for anomaly fix check: {}", brokerFailures.anomalyFixCheckRetryCount());
             // Carry forward the count of anomaly fix checks done until now
+            int retryCount = brokerFailures.anomalyFixCheckRetryCount() + 1;
+            LOG.info("Debug cc: When scheduling next check: anomalyId: {} Retry count for anomaly fix check: {}", _anomalyInProgress.anomalyId(), brokerFailures.anomalyFixCheckRetryCount());
             _detectorScheduler.schedule(() -> _brokerFailureDetector.detectBrokerFailures(false, 
-              brokerFailures.anomalyFixCheckRetryCount() + 1), delayMs, TimeUnit.MILLISECONDS);
+              retryCount), delayMs, TimeUnit.MILLISECONDS);
             _anomalyDetectorState.onAnomalyHandle(_anomalyInProgress, AnomalyState.Status.CHECK_WITH_DELAY);
           }
         }

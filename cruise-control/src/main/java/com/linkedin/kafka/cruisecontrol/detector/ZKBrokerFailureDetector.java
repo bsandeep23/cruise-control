@@ -22,6 +22,8 @@ import kafka.zk.KafkaZkClient;
 import org.apache.zookeeper.client.ZKClientConfig;
 import kafka.zookeeper.ZNodeChildChangeHandler;
 import scala.collection.JavaConverters;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static java.util.stream.Collectors.toSet;
 
@@ -32,6 +34,7 @@ import static java.util.stream.Collectors.toSet;
 public class ZKBrokerFailureDetector extends AbstractBrokerFailureDetector {
   private static final String ZK_BROKER_FAILURE_METRIC_GROUP = "CruiseControlAnomaly";
   private static final String ZK_BROKER_FAILURE_METRIC_TYPE = "BrokerFailure";
+  private static final Logger LOG = LoggerFactory.getLogger(ZKBrokerFailureDetector.class);
 
   private final KafkaZkClient _kafkaZkClient;
   private final ExecutorService _detectionExecutor;
@@ -45,7 +48,9 @@ public class ZKBrokerFailureDetector extends AbstractBrokerFailureDetector {
     ZKClientConfig zkClientConfig = ZKConfigUtils.zkClientConfigFromKafkaConfig(config);
     _kafkaZkClient = KafkaCruiseControlUtils.createKafkaZkClient(zkUrl, ZK_BROKER_FAILURE_METRIC_GROUP, ZK_BROKER_FAILURE_METRIC_TYPE,
                                                                  zkSecurityEnabled, zkClientConfig);
+    LOG.info("CC: debug ZK based broker failure detection is enabled. creating scheduler");
     _detectionExecutor = Executors.newSingleThreadScheduledExecutor(new KafkaCruiseControlThreadFactory("BrokerFailureDetectorExecutor"));
+    LOG.info("CC: debug ZK based broker failure detection is enabled. creating scheduler");
   }
 
   /**
@@ -60,6 +65,7 @@ public class ZKBrokerFailureDetector extends AbstractBrokerFailureDetector {
     synchronized (this) {
       if (!_started) {
         // Load the failed broker information from zookeeper.
+        LOG.info("CC: debug ZK based broker failure detecter 1st run");
         String failedBrokerListString = loadPersistedFailedBrokerList();
         parsePersistedFailedBrokers(failedBrokerListString);
         // Detect broker failures.
@@ -68,6 +74,7 @@ public class ZKBrokerFailureDetector extends AbstractBrokerFailureDetector {
         _kafkaZkClient.registerZNodeChildChangeHandler(new BrokerFailureHandler());
         _kafkaZkClient.getChildren(BrokerIdsZNode.path());
         _started = true;
+        LOG.info("CC: debug ZK based broker failure detecter 1st run complete");
       }
     }
   }
@@ -110,7 +117,9 @@ public class ZKBrokerFailureDetector extends AbstractBrokerFailureDetector {
       // Ensure that broker failures are not reported if there are no updates in already known failed brokers.
       // Anomaly Detector guarantees that a broker failure detection will not be lost. Skipping reporting if not updated
       // ensures that the broker failure detector will not report superfluous broker failures due to flaky zNode.
+      LOG.info("CC: debug ZK based broker failure detecter detect on failure");
       _detectionExecutor.execute(() -> detectBrokerFailures(true));
+      LOG.info("CC: debug ZK based broker failure detecter detect on failure complete");
     }
   }
 

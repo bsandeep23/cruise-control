@@ -69,6 +69,7 @@ public abstract class AbstractBrokerFailureDetector extends AbstractAnomalyDetec
    */
   synchronized void detectBrokerFailures(boolean skipReportingIfNotUpdated, int anomalyFixCheckRetryCount) {
     try {
+      LOG.info("CC: Debug broker failure detector retry count: {}", anomalyFixCheckRetryCount);
       _aliveBrokers = aliveBrokers();
 
       // update the failed broker information based on the current state.
@@ -79,6 +80,7 @@ public abstract class AbstractBrokerFailureDetector extends AbstractAnomalyDetec
       }
       if (!skipReportingIfNotUpdated || updated) {
         // Report the failures to anomaly detector to handle.
+        LOG.info("CC: Debug broker failure detector retry count: reportBrokerFailures {}", anomalyFixCheckRetryCount);
         reportBrokerFailures(anomalyFixCheckRetryCount);
       }
     } catch (Throwable e) {
@@ -200,11 +202,14 @@ public abstract class AbstractBrokerFailureDetector extends AbstractAnomalyDetec
       parameterConfigOverrides.put(ANOMALY_DETECTION_TIME_MS_OBJECT_CONFIG, _kafkaCruiseControl.timeMs());
       parameterConfigOverrides.put(BROKER_FAILURES_FIXABLE_CONFIG,
                                    !tooManyFailedBrokers(failedBrokers.size(), _aliveBrokers.size()));
+      LOG.info("Debug cc: Using the anomaly fix check count: {}", anomalyFixCheckRetryCount);
       parameterConfigOverrides.put(ANOMALY_FIX_CHECK_RETRY_COUNT_CONFIG, anomalyFixCheckRetryCount);
 
       BrokerFailures brokerFailures = _kafkaCruiseControl.config().getConfiguredInstance(AnomalyDetectorConfig.BROKER_FAILURES_CLASS_CONFIG,
                                                                                          BrokerFailures.class,
                                                                                          parameterConfigOverrides);
+
+      LOG.info("Debug cc: creation of brokerfailures object with anomaly id: {} fix check count: {}", brokerFailures.anomalyId(), brokerFailures.anomalyFixCheckRetryCount());
       _anomalies.add(brokerFailures);
     }
   }
