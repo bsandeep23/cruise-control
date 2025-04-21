@@ -110,7 +110,7 @@ public class KafkaCruiseControl {
    * @param config the configuration of Cruise Control.
    */
   public KafkaCruiseControl(KafkaCruiseControlConfig config, MetricRegistry dropwizardMetricRegistry) {
-    LOG.info("Debugging: cc v6 with max retries and reduced intervals anomaly id add logging after creation of anomaly");
+    LOG.info("Debugging: cc v8 with max retries and reduced intervals anomaly id add logging after creation of anomaly using logic from librokers");
     _config = config;
     _time = Time.SYSTEM;
     // initialize some of the static state of Kafka Cruise Control;

@@ -98,6 +98,16 @@ public class BrokerFailures extends KafkaAnomaly {
     return sb.toString();
   }
 
+  protected void configureRetryCount(Map<String, ?> configs) {
+    if (configs.containsKey(AbstractBrokerFailureDetector.ANOMALY_FIX_CHECK_RETRY_COUNT_CONFIG)) {
+      LOG.info("Debug cc: Using the anomaly fix check count while configuring: {}", _anomalyFixCheckRetryCount);
+      _anomalyFixCheckRetryCount = (int) configs.get(AbstractBrokerFailureDetector.ANOMALY_FIX_CHECK_RETRY_COUNT_CONFIG);
+    } else {
+      LOG.info("Debug cc: Using the default anomaly fix check count while configuring: {}", _anomalyFixCheckRetryCount);
+      _anomalyFixCheckRetryCount = 0;
+    }
+  }
+
   @SuppressWarnings("unchecked")
   @Override
   public void configure(Map<String, ?> configs) {
@@ -108,8 +118,7 @@ public class BrokerFailures extends KafkaAnomaly {
       throw new IllegalArgumentException("Missing broker ids for failed brokers anomaly.");
     }
     _fixable = (Boolean) configs.get(AbstractBrokerFailureDetector.BROKER_FAILURES_FIXABLE_CONFIG);
-    _anomalyFixCheckRetryCount = (int) configs.get(AbstractBrokerFailureDetector.ANOMALY_FIX_CHECK_RETRY_COUNT_CONFIG);
-    LOG.info("Debug cc: Using the anomaly fix check count: {}", _anomalyFixCheckRetryCount);
+    configureRetryCount(configs);
     _optimizationResult = null;
     KafkaCruiseControlConfig config = kafkaCruiseControl.config();
     boolean allowCapacityEstimation = config.getBoolean(ANOMALY_DETECTION_ALLOW_CAPACITY_ESTIMATION_CONFIG);

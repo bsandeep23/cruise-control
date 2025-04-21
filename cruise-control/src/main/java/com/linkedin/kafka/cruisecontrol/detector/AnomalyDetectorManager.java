@@ -381,7 +381,7 @@ public class AnomalyDetectorManager {
         }
         if (postProcessAnomalyInProgress) {
           LOG.info("Post processing anomaly {} id: {}.", _anomalyInProgress, _anomalyInProgress.anomalyId());
-          postProcessAnomalyInProgress(_brokerFailureDetectionBackoffMs);
+          postProcessAnomalyInProgress(_brokerFailureDetectionBackoffMs, false);
         }
       }
       LOG.info("Anomaly handler exited.");
@@ -396,7 +396,7 @@ public class AnomalyDetectorManager {
       ExecutorState.State executionState = _kafkaCruiseControl.executionState();
       if (executionState != ExecutorState.State.NO_TASK_IN_PROGRESS && !_anomalyInProgress.stopOngoingExecution()) {
         LOG.info("Post processing anomaly {} because executor is in {} state.", _anomalyInProgress, executionState);
-        postProcessAnomalyInProgress(_brokerFailureDetectionBackoffMs);
+        postProcessAnomalyInProgress(_brokerFailureDetectionBackoffMs, false);
       } else {
         LOG.info("Debug: CC Process anomaly in progress: {} with id: {} ",_anomalyInProgress, _anomalyInProgress.anomalyId());
         processAnomalyInProgress(anomalyType);
@@ -421,7 +421,7 @@ public class AnomalyDetectorManager {
           case CHECK:
             LOG.info("Post processing anomaly {} id {} for {}.", _anomalyInProgress, _anomalyInProgress.anomalyId(), AnomalyState.Status.CHECK_WITH_DELAY);
             LOG.info("Debug cc: processAnomalyInProgress Broker failure check with retry count: {}", ((BrokerFailures) _anomalyInProgress).anomalyFixCheckRetryCount());
-            postProcessAnomalyInProgress(notificationResult.delay());
+            postProcessAnomalyInProgress(notificationResult.delay(), true);
             LOG.info("Debug cc: post processAnomalyInProgress anomalyId {} Broker failure check with retry count: {}", _anomalyInProgress.anomalyId(), ((BrokerFailures) _anomalyInProgress).anomalyFixCheckRetryCount());
             break;
           case IGNORE:
@@ -485,7 +485,7 @@ public class AnomalyDetectorManager {
      *
      * @param delayMs The delay for broker failure detection.
      */
-    private void postProcessAnomalyInProgress(long delayMs) {
+    private void postProcessAnomalyInProgress(long delayMs, boolean carryForwardRetryCount) {
       // Anomaly detector does delayed check for broker failures, otherwise it ignores the anomaly.
       if (_anomalyInProgress.anomalyType() == KafkaAnomalyType.BROKER_FAILURE) {
         synchronized (_shutdownLock) {
@@ -494,12 +494,16 @@ public class AnomalyDetectorManager {
           } else {
             LOG.info("Debug: Scheduling broker failure detection for anomaly Id: {} with delay of {} ms", _anomalyInProgress.anomalyId(), delayMs);
             _numCheckedWithDelay.incrementAndGet();
-            BrokerFailures brokerFailures = (BrokerFailures) _anomalyInProgress;
-            // Carry forward the count of anomaly fix checks done until now
-            int retryCount = brokerFailures.anomalyFixCheckRetryCount() + 1;
-            LOG.info("Debug cc: When scheduling next check: anomalyId: {} Retry count for anomaly fix check: {}", _anomalyInProgress.anomalyId(), brokerFailures.anomalyFixCheckRetryCount());
+            int retryCount = 0;
+            if (carryForwardRetryCount) {
+              BrokerFailures brokerFailures = (BrokerFailures) _anomalyInProgress;
+              // Carry forward the count of anomaly fix checks done until now
+              retryCount = brokerFailures.anomalyFixCheckRetryCount() + 1;
+              LOG.info("Debug cc: When scheduling next check: anomalyId: {} Retry count for anomaly fix check: {}", _anomalyInProgress.anomalyId(), brokerFailures.anomalyFixCheckRetryCount());
+            }
+            int finalRetryCount = retryCount;
             _detectorScheduler.schedule(() -> _brokerFailureDetector.detectBrokerFailures(false,
-              retryCount), delayMs, TimeUnit.MILLISECONDS);
+                finalRetryCount), delayMs, TimeUnit.MILLISECONDS);
             _anomalyDetectorState.onAnomalyHandle(_anomalyInProgress, AnomalyState.Status.CHECK_WITH_DELAY);
           }
         }

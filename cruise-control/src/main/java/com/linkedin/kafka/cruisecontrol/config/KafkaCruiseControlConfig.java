@@ -27,6 +27,8 @@ import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import java.util.Map;
 import org.apache.kafka.common.config.ConfigException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The configuration class of Kafka Cruise Control.
@@ -95,8 +97,10 @@ public class KafkaCruiseControlConfig extends AbstractConfig {
   public <T> T getConfiguredInstance(String key, Class<T> t, Map<String, Object> configOverrides) {
     Class<?> c = getClass(key);
     Map<String, Object> configPairs = mergedConfigValues();
-    LOG.info("Debug: cc configPairs from getConfiguredInstance : {}", configPairs);
+    LOG.info("cc configPairs from getConfiguredInstance : {}", configPairs);
+    LOG.info("Debug cc: using the config overrides: {}", configOverrides);
     configPairs.putAll(configOverrides);
+    LOG.info("cc configPairs after merging : {}", configPairs);
     return KafkaCruiseControlConfigUtils.getConfiguredInstance(c, t, configPairs);
   }
 
