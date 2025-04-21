@@ -354,7 +354,7 @@ public class AnomalyDetectorManager {
         _anomalyInProgress = null;
         try {
           _anomalyInProgress = _anomalies.take();
-          LOG.info("Processing anomaly {}.", _anomalyInProgress);
+          LOG.info("Processing anomaly id: {} {}.", _anomalyInProgress.anomalyId(), _anomalyInProgress);
           if (_anomalyInProgress == SHUTDOWN_ANOMALY) {
             // Service has shutdown.
             _anomalyInProgress = null;
@@ -380,7 +380,7 @@ public class AnomalyDetectorManager {
           postProcessAnomalyInProgress = true;
         }
         if (postProcessAnomalyInProgress) {
-          LOG.info("Post processing anomaly {}.", _anomalyInProgress);
+          LOG.info("Post processing anomaly {} id: {}.", _anomalyInProgress, _anomalyInProgress.anomalyId());
           postProcessAnomalyInProgress(_brokerFailureDetectionBackoffMs);
         }
       }
@@ -398,6 +398,7 @@ public class AnomalyDetectorManager {
         LOG.info("Post processing anomaly {} because executor is in {} state.", _anomalyInProgress, executionState);
         postProcessAnomalyInProgress(_brokerFailureDetectionBackoffMs);
       } else {
+        LOG.info("Debug: CC Process anomaly in progress: {} with id: {} ",_anomalyInProgress, _anomalyInProgress.anomalyId());
         processAnomalyInProgress(anomalyType);
       }
     }
@@ -497,7 +498,7 @@ public class AnomalyDetectorManager {
             // Carry forward the count of anomaly fix checks done until now
             int retryCount = brokerFailures.anomalyFixCheckRetryCount() + 1;
             LOG.info("Debug cc: When scheduling next check: anomalyId: {} Retry count for anomaly fix check: {}", _anomalyInProgress.anomalyId(), brokerFailures.anomalyFixCheckRetryCount());
-            _detectorScheduler.schedule(() -> _brokerFailureDetector.detectBrokerFailures(false, 
+            _detectorScheduler.schedule(() -> _brokerFailureDetector.detectBrokerFailures(false,
               retryCount), delayMs, TimeUnit.MILLISECONDS);
             _anomalyDetectorState.onAnomalyHandle(_anomalyInProgress, AnomalyState.Status.CHECK_WITH_DELAY);
           }

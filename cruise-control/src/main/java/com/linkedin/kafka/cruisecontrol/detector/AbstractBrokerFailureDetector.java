@@ -58,6 +58,7 @@ public abstract class AbstractBrokerFailureDetector extends AbstractAnomalyDetec
   }
 
   synchronized void detectBrokerFailures(boolean skipReportingIfNotUpdated) {
+    LOG.info("Debug: creation of detectBrokerFailures with anomalyFixCheckRetry Count as 0 ");
     detectBrokerFailures(skipReportingIfNotUpdated, 0);
   }
 
